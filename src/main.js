@@ -7,15 +7,38 @@ import { setupEnvironmentSelect } from './environmentSelect.js';
 
 const el = document.getElementById('viewer');
 
+// Finalized camera configuration, dialed in interactively via the (now
+// removed) camera debug panel and hard-coded here. See viewer.js
+// applyCameraOverride() for exactly what each field does. To retune, restore
+// cameraDebugPanel.js (git history) rather than editing these numbers by hand.
+const CAMERA_OVERRIDE = {
+	position: [13.2606, 13.5978, 0.9805],
+	target: [1.0394, 1.3733, 7.8057],
+	fov: 57.0,
+	near: 3.0292,
+	far: 30292.26,
+	minPolarAngle: 0.8529,
+	maxPolarAngle: 0.8529, // vertical orbit fully locked at this angle
+	minAzimuthAngle: -Infinity,
+	maxAzimuthAngle: Infinity, // horizontal orbit unrestricted
+	minDistance: 0.0,
+	maxDistance: 3029.2256,
+	enableRotate: true,
+	enableZoom: true,
+	enablePan: true,
+	lockOrigin: true, // controls.target re-asserted every frame at the value above
+};
+
 const viewer = new Viewer(el, {
 	// cameraPosition: [x, y, z],  // optional: skip auto-framing for a fixed shot
+	cameraOverride: CAMERA_OVERRIDE,
 });
 
 // --- Load your GLB here -----------------------------------------------------
 // Swap this URL for wherever your asset actually lives (public/models/, a CDN,
 // an upload flow, etc). load() returns the parsed GLTF result if you need
 // gltf.scene / gltf.animations / gltf.cameras directly.
-const MODEL_URL = '/models/360 Exterior 1.4.glb';
+const MODEL_URL = '/models/360 Exterior 1.5.glb';
 
 // Default HDRI once the model has loaded (overrides the parity default of
 // 'Neutral' set in viewer.js's constructor) — highest-res, most neutral

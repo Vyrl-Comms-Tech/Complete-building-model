@@ -285,6 +285,15 @@ export class Viewer {
 		this.setCamera(DEFAULT_CAMERA);
 		this.controls.saveState();
 
+		// --- Finalized camera override (NOT part of the reference pipeline) ---
+		// Applied after the REFERENCE auto-framing above, so it deterministically
+		// wins for this deployment without deleting/altering that logic. Values
+		// were dialed in interactively via the (now-removed) camera debug panel
+		// and hard-coded here. See applyCameraOverride() for what each field does.
+		if (this.options.cameraOverride) {
+			this.applyCameraOverride(this.options.cameraOverride);
+		}
+
 		this.scene.add(object);
 		this.content = object;
 
@@ -300,6 +309,69 @@ export class Viewer {
 
 		this.updateLights();
 		this.updateEnvironment();
+	}
+
+	/**
+	 * Applies a finalized, hard-coded camera/controls configuration produced by
+	 * the (now-removed) camera debug panel's "Copy config" button. Not part of
+	 * the reference pipeline — a deployment-specific override, applied once per
+	 * setContent() call, after the REFERENCE auto-framing has already run.
+	 *
+	 * @param {object} cfg
+	 * @param {[number, number, number]} [cfg.position]
+	 * @param {[number, number, number]} [cfg.target]
+	 * @param {number} [cfg.fov]
+	 * @param {number} [cfg.near]
+	 * @param {number} [cfg.far]
+	 * @param {number} [cfg.minPolarAngle]
+	 * @param {number} [cfg.maxPolarAngle]
+	 * @param {number} [cfg.minAzimuthAngle]
+	 * @param {number} [cfg.maxAzimuthAngle]
+	 * @param {number} [cfg.minDistance]
+	 * @param {number} [cfg.maxDistance]
+	 * @param {boolean} [cfg.enableRotate]
+	 * @param {boolean} [cfg.enableZoom]
+	 * @param {boolean} [cfg.enablePan]
+	 * @param {boolean} [cfg.lockOrigin] - If true, controls.target is re-asserted
+	 *   every frame at its value at the moment this override is applied, so the
+	 *   orbit center can never drift from panning, even though enablePan can
+	 *   independently stay true (matches the debug panel's "Lock target" toggle).
+	 */
+	applyCameraOverride(cfg) {
+		const camera = this.defaultCamera;
+		const controls = this.controls;
+
+		if (cfg.position) camera.position.fromArray(cfg.position);
+		if (cfg.target) controls.target.fromArray(cfg.target);
+
+		if (cfg.fov !== undefined) camera.fov = cfg.fov;
+		if (cfg.near !== undefined) camera.near = cfg.near;
+		if (cfg.far !== undefined) camera.far = cfg.far;
+		camera.updateProjectionMatrix();
+
+		if (cfg.minPolarAngle !== undefined) controls.minPolarAngle = cfg.minPolarAngle;
+		if (cfg.maxPolarAngle !== undefined) controls.maxPolarAngle = cfg.maxPolarAngle;
+		if (cfg.minAzimuthAngle !== undefined) controls.minAzimuthAngle = cfg.minAzimuthAngle;
+		if (cfg.maxAzimuthAngle !== undefined) controls.maxAzimuthAngle = cfg.maxAzimuthAngle;
+		if (cfg.minDistance !== undefined) controls.minDistance = cfg.minDistance;
+		if (cfg.maxDistance !== undefined) controls.maxDistance = cfg.maxDistance;
+		if (cfg.enableRotate !== undefined) controls.enableRotate = cfg.enableRotate;
+		if (cfg.enableZoom !== undefined) controls.enableZoom = cfg.enableZoom;
+		if (cfg.enablePan !== undefined) controls.enablePan = cfg.enablePan;
+
+		controls.update();
+		controls.saveState();
+
+		if (this._unsubscribeOriginLock) {
+			this._unsubscribeOriginLock();
+			this._unsubscribeOriginLock = null;
+		}
+		if (cfg.lockOrigin) {
+			const lockedTarget = controls.target.clone();
+			this._unsubscribeOriginLock = this.addBeforeRenderCallback(() => {
+				controls.target.copy(lockedTarget);
+			});
+		}
 	}
 
 	/** @param {import('three').AnimationClip[]} clips */
